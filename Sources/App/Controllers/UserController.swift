@@ -15,11 +15,6 @@ struct UserController: RouteCollection {
     }
 
     func getProfile(req: Request) async throws -> User {
-        let payload = try req.jwt.verify(as: UserPayload.self)
-        guard let userId = UUID(uuidString: payload.subject.value),
-              let user = try await User.find(userId, on: req.db) else {
-            throw Abort(.unauthorized)
-        }
-        return user
+        return try req.auth.require(User.self)
     }
 }

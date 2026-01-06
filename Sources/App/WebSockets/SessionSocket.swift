@@ -50,10 +50,8 @@ class GameSocketManager {
         }
     }
     
-    func handleMessage(sessionID: UUID, playerID: UUID, text: String) {
+    func handleMessage(sessionID: UUID, playerID: UUID, text: String, app: Application) {
         // Parse the incoming text message
-        // Example: {"type": "answer", "questionID": "...", "index": 2}
-        
         guard let data = text.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let type = json["type"] as? String else {
@@ -62,11 +60,39 @@ class GameSocketManager {
         
         switch type {
         case "answer":
-            // Process answer (would call GameService.submitAnswer)
-            // Note: Since this is synchronous, we'd need to spawn a Task to call async DB/Service methods
+            // Expected format: {"type": "answer", "questionID": "...", "index": 1}
+            guard let questionIDStr = json["questionID"] as? String,
+                  let questionID = UUID(uuidString: questionIDStr),
+                  let index = json["index"] as? Int else {
+                return
+            }
+            
+            // Spawn a detached task to handle async database operations
             Task {
-                // Logic to handle answer submission
-                // await gameService.submitAnswer(...)
+                do {
+                    // Create a new database context for this operation
+                    // Note: In a real app, we should be careful about connection pooling limits here
+                     try await app.db.transaction { db in
+                        let gameService = GameService(db: db)
+                        // Time elapsed could be passed from client or calculated on server (better)
+                        // For this demo, we'll assume client sends it or we default to 0
+                        let timeElapsed = (json["timeElapsed"] as? Int) ?? 0
+                        
+                        let points = try await gameService.submitAnswer(
+                            sessionId: sessionID,
+                            userId: playerID,
+                            questionId: questionID,
+                            selectedIndex: index,
+                            timeElapsedMs: timeElapsed
+                        )
+                        
+                        // Notify player of their score
+                        let response = ["type": "scoreUpdate", "points": points, "totalScore": 0] as [String : Any] // Total score logic needed in GameService response
+                        // Broadcast update if needed or just reply to user
+                     }
+                } catch {
+                    print("Error processing answer: \(error)")
+                }
             }
         default:
             break

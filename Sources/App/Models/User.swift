@@ -6,7 +6,13 @@ enum UserRole: String, Codable {
     case user
 }
 
-final class User: Model, Content {
+final class User: Model, Content, ModelAuthenticatable {
+    static let usernameKey = \User.$username
+    static let passwordHashKey = \User.$passwordHash
+
+    func verify(password: String) throws -> Bool {
+        try Bcrypt.verify(password, created: self.passwordHash)
+    }
     static let schema = "users"
 
     @ID(key: .id)

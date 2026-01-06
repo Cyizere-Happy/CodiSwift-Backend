@@ -10,13 +10,9 @@ func routes(_ app: Application) throws {
         "Hello, world!"
     }
 
-    // Register Controllers
+    // Register Public Controllers
     try app.register(collection: AuthController())
-    try app.register(collection: UserController())
-    try app.register(collection: LessonController())
-    try app.register(collection: SessionController())
-    try app.register(collection: LeaderboardController())
-
+    
     // WebSocket Route
     app.webSocket("sessions", ":sessionID", "socket") { req, ws in
         guard let sessionID = req.parameters.get("sessionID", as: UUID.self) else {
@@ -57,7 +53,7 @@ func routes(_ app: Application) throws {
                         
                         ws.onText { ws, text in
                             // Handle incoming messages
-                            // GameSocketManager.shared.handleMessage(sessionID: sessionID, playerID: userID, text: text)
+                            GameSocketManager.shared.handleMessage(sessionID: sessionID, playerID: userID, text: text, app: req.application)
                         }
                         
                         // Send welcome
@@ -73,4 +69,16 @@ func routes(_ app: Application) throws {
             ws.close(code: .policyViolation)
         }
     }
+    
+    // Protected Routes Configuration
+    let protected = app.grouped(UserTokenAuthenticator())
+                       .grouped(User.guardMiddleware())
+    
+    try protected.register(collection: UserController())
+    try protected.register(collection: SessionController())
+    try protected.register(collection: LeaderboardController())
+    try protected.register(collection: LessonController())
+    
+    // Lesson Controller handles its own mixed routes (public/protected)
+    // Removed duplicate registration
 }

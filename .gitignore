@@ -1,0 +1,21 @@
+# Vapor
+.build/
+Resources/Views/
+Public/
+
+# Swift
+.swiftpm
+*.xcodeproj
+*.xcworkspace
+DerivedData/
+
+# Environment Variables
+.env
+env.local
+
+# macOS
+.DS_Store
+
+# Editors
+.vscode/
+.idea/

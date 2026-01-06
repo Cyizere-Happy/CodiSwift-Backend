@@ -73,11 +73,8 @@ struct LessonController: RouteCollection {
     func complete(req: Request) async throws -> HTTPStatus {
         guard let lessonID = req.parameters.get("lessonID", as: UUID.self) else { throw Abort(.badRequest) }
         
-        let payload = try req.jwt.verify(as: UserPayload.self)
-        guard let userID = UUID(uuidString: payload.subject.value),
-              let user = try await User.find(userID, on: req.db) else {
-            throw Abort(.unauthorized)
-        }
+        let user = try req.auth.require(User.self)
+        let userID = user.id!
         
         // Mark as completed
         if let existing = try await UserLesson.query(on: req.db)
